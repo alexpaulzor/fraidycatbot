@@ -3,32 +3,34 @@ from time import sleep
 from SimpleCV import Image, Display, ImageSet
 import os
 
+BG_PICS = 10
+MAX_PICS = 3000
+FRAME_DELAY = 0.5
 camera = PiCamera()
 disp = Display()
 dirname = 'data'
 bgdir = os.path.join(dirname, 'bg')
 bgname = os.path.join(bgdir, 'img{}.jpg')
 bgf = os.path.join(dirname, 'bg.jpg')
-timg = os.path.join(dirname, 'timg.jpg')
-oimg = os.path.join(dirname, 'oimg.jpg')
+oimg = os.path.join(dirname, 'oimg{}.jpg')
 
 def save_picture(fname):
-    try:
-        camera.start_preview()
-        sleep(1)
-        camera.capture(fname)
-        print("Captured to {}".format(fname))
-    finally:
-        camera.stop_preview()
+    #camera.start_preview()
+    camera.capture(fname)
+    print("Captured to {}".format(fname))
 
-def build_bg():
+def get_bg():
     if os.path.exists(bgf):
         print("{} exists".format(bgf))
         return Image(bgf)
-    for n in range(20):
+    return build_bg()
+
+def build_bg():
+    for n in range(BG_PICS):
         pn = bgname.format(n)
-        if not os.path.exists(pn):
-            save_picture(pn)
+        save_picture(pn)
+        sleep(FRAME_DELAY)
+    camera.stop_preview()
     frames = ImageSet()
     frames.load(bgdir)
     img = Image(frames[0].size())
@@ -36,25 +38,28 @@ def build_bg():
     for frame in frames:
         img = img + (frame / nframes)
     img.save(bgf)
-    img.save(disp)
-    sleep(2)
     return img
 
-bg = build_bg()
+def show_img(img):
+    camera.stop_preview()
+    img.save(disp)
+    sleep(FRAME_DELAY)
 
-save_picture(timg)
+def main():
+    bg = build_bg()
+    show_img(bg)
+    i = 0
+    while True:
+        fname = oimg.format(i % MAX_PICS)
+        save_picture(fname)
 
-# Get Image from camera
-img = Image(timg)
-img = img - bg
-#blobs = img.findBlobs()
-#blobs.draw(autocolor=True)
-# Make image black and white
-# img = img.binarize()
-# Draw the text "Hello World" on image
-# img.drawText("Hello World!")
-# Show the image
-# img.show()
-img.save(oimg)
-img.save(disp)
-sleep(3)
+        img = Image(fname)
+        dimg = img - bg
+        blobs = dimg.findBlobs()
+        blobs.draw(autocolor=True)
+        show_img(dimg)
+        i += 1
+
+if __name__ == '__main__':
+    main()
+
